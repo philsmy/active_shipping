@@ -25,11 +25,17 @@ module ActiveShipping
       
       doc.css(".tnt-tracking-history tr")
       
+      success = true
+      
       status_description = doc.css('dd.tnt-item-status').text
       
       status = status_description.downcase.to_sym
       if status_description =~ /ready.*delivery/i
         status = :out_for_delivery
+      end
+      if status_description =~ /item number isn't recognised/i
+        status = :not_recognized
+        success = false
       end
 
 
@@ -52,7 +58,7 @@ module ActiveShipping
         actual_delivery_date = shipment_events.last.time
       end
       
-      TrackingResponse.new(true, status_description, {success: true},
+      TrackingResponse.new(success, status_description, {success: success},
                            :carrier => @@name,
                            :status => status,
                            :status_description => status_description,

@@ -15,6 +15,17 @@ class RateEstimateTest < Minitest::Test
     assert_nil @rate_estimate.send(:date_for, nil)
   end
 
+  def test_phone_required
+    est = RateEstimate.new(@origin, @destination, @carrier, @service_name, @options.merge(phone_required: true))
+    assert_equal true, est.phone_required
+
+    est = RateEstimate.new(@origin, @destination, @carrier, @service_name, @options.merge(phone_required: nil))
+    assert_equal false, est.phone_required
+
+    est = RateEstimate.new(@origin, @destination, @carrier, @service_name, @options.merge(phone_required: false))
+    assert_equal false, est.phone_required
+  end
+
   def test_date_for_invalid_string_in_ruby_19
     assert_nil @rate_estimate.send(:date_for, "Up to 2 weeks") if RUBY_VERSION.include?('1.9')
   end
@@ -34,5 +45,10 @@ class RateEstimateTest < Minitest::Test
     est = RateEstimate.new(@origin, @destination, @carrier, @service_name, @options.merge(estimate_reference: "somefakeref"))
 
     assert_equal "somefakeref", est.estimate_reference
+  end
+
+  def test_compare_price_is_set
+    est = RateEstimate.new(@origin, @destination, @carrier, @service_name, @options.merge(compare_price: 10.0))
+    assert_equal 1000, est.compare_price
   end
 end

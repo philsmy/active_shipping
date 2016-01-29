@@ -93,6 +93,25 @@ module ActiveShipping
       "07" => "UPS Express"
     }
 
+    RETURN_SERVICE_CODES = {
+      "2"  => "UPS Print and Mail (PNM)",
+      "3"  => "UPS Return Service 1-Attempt (RS1)",
+      "5"  => "UPS Return Service 3-Attempt (RS3)",
+      "8"  => "UPS Electronic Return Label (ERL)",
+      "9"  => "UPS Print Return Label (PRL)",
+      "10" => "UPS Exchange Print Return Label",
+      "11" => "UPS Pack & Collect Service 1-Attempt Box 1",
+      "12" => "UPS Pack & Collect Service 1-Attempt Box 2",
+      "13" => "UPS Pack & Collect Service 1-Attempt Box 3",
+      "14" => "UPS Pack & Collect Service 1-Attempt Box 4",
+      "15" => "UPS Pack & Collect Service 1-Attempt Box 5",
+      "16" => "UPS Pack & Collect Service 3-Attempt Box 1",
+      "17" => "UPS Pack & Collect Service 3-Attempt Box 2",
+      "18" => "UPS Pack & Collect Service 3-Attempt Box 3",
+      "19" => "UPS Pack & Collect Service 3-Attempt Box 4",
+      "20" => "UPS Pack & Collect Service 3-Attempt Box 5",
+    }
+
     TRACKING_STATUS_CODES = HashWithIndifferentAccess.new(
       'I' => :in_transit,
       'D' => :delivered,
@@ -111,6 +130,7 @@ module ActiveShipping
     DEFAULT_SERVICE_NAME_TO_CODE = Hash[UPS::DEFAULT_SERVICES.to_a.map(&:reverse)]
     DEFAULT_SERVICE_NAME_TO_CODE['UPS 2nd Day Air'] = "02"
     DEFAULT_SERVICE_NAME_TO_CODE['UPS 3 Day Select'] = "12"
+    DEFAULT_SERVICE_NAME_TO_CODE['UPS Next Day Air Early'] = "14"
 
     SHIPMENT_DELIVERY_CONFIRMATION_CODES = {
       delivery_confirmation_signature_required: 1,
@@ -313,8 +333,11 @@ module ActiveShipping
     # * delivery_confirmation: Can be set to any key from SHIPMENT_DELIVERY_CONFIRMATION_CODES. Can also be set on package level via package.options
     def build_shipment_request(origin, destination, packages, options={})
       packages = Array(packages)
+      shipper = options[:shipper] || origin
       options[:international] = origin.country.name != destination.country.name
-      options[:imperial] ||= IMPERIAL_COUNTRIES.include?(origin.country_code(:alpha2))
+      options[:imperial] ||= IMPERIAL_COUNTRIES.include?(shipper.country_code(:alpha2))
+      options[:return] = options[:return_service_code].present?
+      options[:reason_for_export] ||= ("RETURN" if options[:return])
 
       if allow_package_level_reference_numbers(origin, destination)
         if options[:reference_numbers]
@@ -349,7 +372,7 @@ module ActiveShipping
             build_location_node(xml, 'ShipTo', destination, options)
             build_location_node(xml, 'ShipFrom', origin, options)
             # Required element. The company whose account is responsible for the label(s).
-            build_location_node(xml, 'Shipper', options[:shipper] || origin, options)
+            build_location_node(xml, 'Shipper', shipper, options)
 
             if options[:saturday_delivery]
               xml.ShipmentServiceOptions do
@@ -416,7 +439,9 @@ module ActiveShipping
             end
 
             if options[:international]
-              build_location_node(xml, 'SoldTo', options[:sold_to] || destination, options)
+              unless options[:return]
+                build_location_node(xml, 'SoldTo', options[:sold_to] || destination, options)
+              end
 
               if origin.country_code(:alpha2) == 'US' && ['CA', 'PR'].include?(destination.country_code(:alpha2))
                 # Required for shipments from the US to Puerto Rico or Canada
@@ -429,6 +454,12 @@ module ActiveShipping
               contents_description = packages.map {|p| p.options[:description]}.compact.join(',')
               unless contents_description.empty?
                 xml.Description(contents_description)
+              end
+            end
+
+            if options[:return]
+              xml.ReturnService do
+                xml.Code(options[:return_service_code])
               end
             end
 
@@ -450,15 +481,27 @@ module ActiveShipping
             end
           end
 
-          # I don't know all of the options that UPS supports for labels
-          # so I'm going with something very simple for now.
+          # Supported label formats:
+          # GIF, EPL, ZPL, STARPL and SPL
+          label_format = options[:label_format] ? options[:label_format].upcase : 'GIF'
+          label_size = options[:label_size] ? options[:label_size] : [4, 6]
+
           xml.LabelSpecification do
-            xml.LabelPrintMethod do
-              xml.Code('GIF')
+            xml.LabelStockSize do
+              xml.Height(label_size[0])
+              xml.Width(label_size[1])
             end
-            xml.HTTPUserAgent('Mozilla/4.5') # hmmm
-            xml.LabelImageFormat('GIF') do
-              xml.Code('GIF')
+
+            xml.LabelPrintMethod do
+              xml.Code(label_format)
+            end
+
+            # API requires these only if returning a GIF formated label
+            if label_format == 'GIF'
+              xml.HTTPUserAgent('Mozilla/4.5')
+              xml.LabelImageFormat(label_format) do
+                xml.Code(label_format)
+              end
             end
           end
         end
@@ -489,10 +532,12 @@ module ActiveShipping
             xml.Weight([value.round(3), 0.1].max)
           end
 
-          xml.InvoiceLineTotal do
-            xml.CurrencyCode('USD')
-            total_value = packages.inject(0) {|sum, package| sum + package.value}
-            xml.MonetaryValue(total_value)
+          if packages.any? {|package| package.value.present?}
+            xml.InvoiceLineTotal do
+              xml.CurrencyCode('USD')
+              total_value = packages.inject(0) {|sum, package| sum + package.value.to_i}
+              xml.MonetaryValue(total_value)
+            end
           end
 
           xml.PickupDate(pickup_date.strftime('%Y%m%d'))
@@ -631,9 +676,13 @@ module ActiveShipping
 
     def build_package_node(xml, package, options = {})
       xml.Package do
-
         # not implemented:  * Shipment/Package/PackagingType element
-        #                   * Shipment/Package/Description element
+
+        #return requires description
+        if options[:return]
+          contents_description = package.options[:description]
+          xml.Description(contents_description) if contents_description
+        end
 
         xml.PackagingType do
           xml.Code('02')
@@ -678,6 +727,24 @@ module ActiveShipping
           if delivery_confirmation = package.options[:delivery_confirmation]
             xml.DeliveryConfirmation do
               xml.DCISType(PACKAGE_DELIVERY_CONFIRMATION_CODES[delivery_confirmation])
+            end
+          end
+
+          if dry_ice = package.options[:dry_ice]
+            xml.DryIce do
+              xml.RegulationSet(dry_ice[:regulation_set] || 'CFR')
+              xml.DryIceWeight do
+                xml.UnitOfMeasurement do
+                  xml.Code(options[:imperial] ? 'LBS' : 'KGS')
+                end
+                # Cannot be more than package weight.
+                # Should be more than 0.0.
+                # Valid characters are 0-9 and .(Decimal point).
+                # Limit to 1 digit after the decimal. The maximum length
+                # of the field is 5 including . and can hold up
+                # to 1 decimal place.
+                xml.Weight(dry_ice[:weight])
+              end
             end
           end
         end

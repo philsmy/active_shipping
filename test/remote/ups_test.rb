@@ -286,6 +286,25 @@ class RemoteUPSTest < Minitest::Test
     assert_equal Date.parse(1.business_days.from_now.to_s), ground_delivery_estimate.date
   end
 
+  def test_delivery_date_estimates_within_zip_with_no_value
+    today = Date.current
+
+    response = @carrier.get_delivery_date_estimates(
+      location_fixtures[:new_york_with_name],
+      location_fixtures[:new_york_with_name],
+      package_fixtures.values_at(:book),
+      today,
+      {
+        :test => true
+      }
+    )
+
+    assert response.success?
+    refute_empty response.delivery_estimates
+    ground_delivery_estimate = response.delivery_estimates.select {|de| de.service_name == "UPS Ground"}.first
+    assert_equal Date.parse(1.business_days.from_now.to_s), ground_delivery_estimate.date
+  end
+
   def test_delivery_date_estimates_across_zips
     today = Date.current
 
@@ -358,5 +377,85 @@ class RemoteUPSTest < Minitest::Test
 
   def test_maximum_address_field_length
     assert_equal 35, @carrier.maximum_address_field_length
+  end
+
+  def test_obtain_return_label
+    response = @carrier.create_shipment(
+      location_fixtures[:beverly_hills_with_name],
+      location_fixtures[:real_google_as_commercial],
+      #package descriptions are required for returns
+      package_fixtures.values_at(:books),
+      {
+        :shipper => location_fixtures[:new_york],
+        :return_service_code => '9',
+        :test => true
+      }
+    )
+
+    assert response.success?
+
+    assert_instance_of ActiveShipping::LabelResponse, response
+  end
+
+  def test_obtain_international_return_label
+    response = @carrier.create_shipment(
+      location_fixtures[:ottawa_with_name],
+      #international return requires destination to have: phone number, name
+      location_fixtures[:real_google_with_name_phone],
+      #package descriptions are required for returns
+      package_fixtures.values_at(:books),
+      {
+        #international return requires shipper to have: phone, name
+        :shipper => location_fixtures[:new_york_with_name],
+        :service_code => '07',
+        :return_service_code => '9',
+        :test => true,
+      }
+    )
+
+    assert response.success?
+
+    assert_instance_of ActiveShipping::LabelResponse, response
+  end
+
+  def test_obtain_shipping_label_zpl_format
+    response = @carrier.create_shipment(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york_with_name],
+      package_fixtures.values_at(:american_wii),
+      :label_format => "ZPL",
+      :test => true
+    )
+
+    assert response.success?
+    assert_instance_of ActiveShipping::LabelResponse, response
+    assert_equal "ZPL", response.params['ShipmentResults']['PackageResults']['LabelImage']['LabelImageFormat']['Code']
+  end
+
+  def test_obtain_shipping_label_defaults_to_gif_format
+    response = @carrier.create_shipment(
+      location_fixtures[:beverly_hills],
+      location_fixtures[:new_york_with_name],
+      package_fixtures.values_at(:american_wii),
+      :label_format => nil,
+      :test => true
+    )
+
+    assert response.success?
+    assert_instance_of ActiveShipping::LabelResponse, response
+    assert_equal "GIF", response.params['ShipmentResults']['PackageResults']['LabelImage']['LabelImageFormat']['Code']
+  end
+
+  def test_create_shipment_with_dry_ice_options
+    response = @carrier.create_shipment(
+      location_fixtures[:beverly_hills_with_name],
+      location_fixtures[:new_york_with_name],
+      package_fixtures.values_at(:frozen_stuff),
+      :service_code => '01',
+      :test => true
+    )
+
+    assert response.success?
+    assert_instance_of ActiveShipping::LabelResponse, response
   end
 end

@@ -1,5 +1,19 @@
 # ActiveShipping CHANGELOG
 
+### v1.6.1
+- Fix FedEx ShipmentEvents to include event type
+- Skip broken Canada Post remote tests
+
+### v1.6.0
+- Update active_utils dependency to v3.2.0
+
+### v1.5.0
+- Fix Kunaki remote test
+- Fix credentials for Canada Post PWS remote tests
+- Add compare price to rate estimate options
+- Add phone required to rate estimate options
+- Update active_utils dependency to v3.1.0
+
 ### v1.4.3
 
 - Fix UPS SurePost for < 1 pound packages

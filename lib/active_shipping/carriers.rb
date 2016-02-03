@@ -33,4 +33,5 @@ ActiveShipping::Carriers.register :NewZealandPost,   'active_shipping/carriers/n
 ActiveShipping::Carriers.register :CanadaPostPWS,    'active_shipping/carriers/canada_post_pws'
 ActiveShipping::Carriers.register :Stamps,           'active_shipping/carriers/stamps'
 ActiveShipping::Carriers.register :Correios,         'active_shipping/carriers/correios'
-ActiveShipping::Carriers.register :RoyalMail,         'active_shipping/carriers/royal_mail'
+ActiveShipping::Carriers.register :RoyalMail,        'active_shipping/carriers/royal_mail'
+ActiveShipping::Carriers.register :Dhl,              'active_shipping/carriers/dhl'

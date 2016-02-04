@@ -32,7 +32,9 @@ Active Shipping is currently being used and improved in a production environment
 gem install active_shipping
 ```
 
-```bundler
+Or put in your [Gemfile](http://bundler.io)
+
+```ruby
 gem 'active_shipping', github: 'philsmy/active_shipping'
 ```
 

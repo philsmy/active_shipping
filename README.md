@@ -23,6 +23,8 @@ Active Shipping is currently being used and improved in a production environment
 * [Shipwire](http://www.shipwire.com)
 * [Stamps](http://www.stamps.com)
 * [Kunaki](http://www.kunaki.com)
+* [RoyalMail](http://www.royalmail.com/) - tracking info only
+* [DHL](http://www.dhl.com/) -  tracking info only; currently only tested on 'Smartmail' tracking numbers
 
 ## Installation
 
@@ -30,7 +32,9 @@ Active Shipping is currently being used and improved in a production environment
 gem install active_shipping
 ```
 
-...or add it to your project's [Gemfile](http://bundler.io/).
+```bundler
+gem 'active_shipping', github: 'philsmy/active_shipping'
+```
 
 ## Sample Usage
 

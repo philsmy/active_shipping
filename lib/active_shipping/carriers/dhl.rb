@@ -1,3 +1,5 @@
+require 'curl'
+
 module ActiveShipping
   class Dhl < Carrier
     cattr_reader :name

@@ -1,3 +1,5 @@
+require 'curl'
+
 module ActiveShipping
   class RoyalMail < Carrier
     cattr_reader :name

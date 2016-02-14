@@ -1,3 +1,5 @@
+require 'curl'
+
 module ActiveShipping
   class ParcelForce < Carrier
     cattr_reader :name

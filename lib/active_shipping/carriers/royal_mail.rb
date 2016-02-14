@@ -20,11 +20,18 @@ module ActiveShipping
       parse_tracking_response(tracking_number, options)
     end
     
-    def parse_tracking_response(tracking_number, options)
+    def parse_tracking_response(tracking_number, options = {})
       sleep 2;
       scheduled_delivery_date, actual_delivery_date = nil
       delivered = false
-      doc = Nokogiri::HTML(Curl::Easy.perform(LIVE_TRACKING_URL % tracking_number){|easy| easy.timeout=10}.body_str)
+      
+      easy = Curl::Easy.new(LIVE_TRACKING_URL % tracking_number)
+      easy.timeout = options[:timeout].present? ? options[:timeout] : 20
+      easy.proxy_url = options[:proxy_url] if options[:proxy_url].present?
+      easy.proxy_port = options[:proxy_port] if options[:proxy_port].present?
+      easy.perform
+      
+      doc = Nokogiri::HTML(easy.body_str)
             
       doc.css(".tnt-tracking-history tr")
       

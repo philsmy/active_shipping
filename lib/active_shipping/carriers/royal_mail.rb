@@ -24,7 +24,7 @@ module ActiveShipping
       sleep 2;
       scheduled_delivery_date, actual_delivery_date = nil
       delivered = false
-      doc = Nokogiri::HTML(Curl::Easy.perform(LIVE_TRACKING_URL % tracking_number).body_str)
+      doc = Nokogiri::HTML(Curl::Easy.perform(LIVE_TRACKING_URL % tracking_number){|easy| easy.timeout=10}.body_str)
             
       doc.css(".tnt-tracking-history tr")
       

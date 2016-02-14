@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.add_dependency('activesupport', '>= 3.2', '< 5.0.0')
   s.add_dependency('active_utils',  '~> 3.2.0')
   s.add_dependency('nokogiri',      '>= 1.6')
-  s.add_dependency('taf2-curb')
+  s.add_dependency('curb')
 
   s.add_development_dependency('minitest')
   s.add_development_dependency('rake')

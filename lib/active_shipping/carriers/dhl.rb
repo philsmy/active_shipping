@@ -15,7 +15,9 @@ module ActiveShipping
     def parse_tracking_response(tracking_number, options)
       scheduled_delivery_date, actual_delivery_date = nil
       delivered = false
-      doc = Nokogiri::HTML(Curl::Easy.perform(LIVE_TRACKING_URL % tracking_number).body_str)
+      easy = Curl::Easy.new(LIVE_TRACKING_URL % tracking_number)
+      doc = Nokogiri::HTML(easy.perform.body_str)
+      easy.close
 
       shipment_events = []
 

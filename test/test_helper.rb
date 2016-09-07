@@ -87,6 +87,7 @@ module ActiveShipping::Test
         :chocolate_stuff => Package.new(80, [2, 6, 12], :units => :imperial),
         :frozen_stuff => Package.new(80, [2, 6, 12], :units => :imperial, :dry_ice => {weight: 1.4}),
         :declared_value => Package.new(80, [2, 6, 12], :units => :imperial, :currency => 'USD', :value => 999.99),
+        :insured_value => Package.new(80, [2, 6, 12], :units => :imperial, :currency => 'USD', :insured_value => 999.99),
         :tshirts => Package.new(10 * 16, nil, :units => :imperial),
         :shipping_container => Package.new(2200000, [2440, 2600, 6058], :description => '20 ft Standard Container', :units => :metric),
         :largest_gold_bar => Package.new(250000, [45.5, 22.5, 17], :value => 15300000),
@@ -244,7 +245,19 @@ module ActiveShipping::Test
                                       :city => 'Groningen',
                                       :address1 => 'Aquamarijnstraat 349',
                                       :postal_code => '9743 PJ',
-                                      :state => 'Groningen')
+                                      :state => 'Groningen'),
+        :sydney => Location.new(
+                                      :country => 'AUS',
+                                      :city => 'Sydney',
+                                      :state => 'NSW',
+                                      :address1 => '192 George Street',
+                                      :postal_code => '2000'),
+        :melbourne => Location.new(
+                                      :country => 'AUS',
+                                      :city => 'Melbourne',
+                                      :state => 'VIC',
+                                      :address1 => '192 George Street',
+                                      :postal_code => '3108')
       }
     end
 

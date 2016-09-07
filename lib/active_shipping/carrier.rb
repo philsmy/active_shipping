@@ -7,6 +7,7 @@ module ActiveShipping
   #
   # @see #find_rates
   # @see #create_shipment
+  # @see #cancel_shipment
   # @see #find_tracking_info
   #
   # @!attribute test_mode
@@ -65,6 +66,20 @@ module ActiveShipping
     #   and potentially shipping labels.
     def create_shipment(origin, destination, packages, options = {})
       raise NotImplementedError, "#create_shipment is not supported by #{self.class.name}."
+    end
+
+    # Cancels a shipment with a carrier.
+    #
+    # @note Override with whatever you need to cancel a shipping label
+    #
+    # @param shipment_id [String] The unique identifier of the shipment to cancel.
+    #  This can be shipment_id or tracking number depending on carrier. Up to you and
+    #  the carrier
+    # @param options [Hash] Carrier-specific parameters.
+    # @return [ActiveShipping::ShipmentResponse] The response from the carrier. This
+    #   response in most cases has a cancellation id.
+    def cancel_shipment(shipment_id, options = {})
+      raise NotImplementedError, "#cancel_shipment is not supported by #{self.class.name}."
     end
 
     # Retrieves tracking information for a previous shipment
@@ -147,12 +162,15 @@ module ActiveShipping
     def timestamp_from_business_day(days)
       return unless days
       date = DateTime.now.utc
+
       days.times do
-        begin
-          date = date + 1
-        end while [0, 6].include?(date.wday)
+        date += 1.day
+
+        date += 2.days if date.saturday?
+        date += 1.day if date.sunday?
       end
-      date
+
+      date.to_datetime
     end
   end
 end

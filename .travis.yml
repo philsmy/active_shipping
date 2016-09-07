@@ -5,13 +5,22 @@ sudo: false
 rvm:
 - "2.0"
 - "2.1"
-- "2.2"
+- "2.2.2"
+- "2.3.1"
 
 gemfile:
 - Gemfile.activesupport32
 - Gemfile.activesupport40
 - Gemfile.activesupport41
 - Gemfile.activesupport42
+- Gemfile.activesupport50
+
+matrix:
+  exclude:
+    - rvm: "2.0"
+      gemfile: Gemfile.activesupport50
+    - rvm: "2.1"
+      gemfile: Gemfile.activesupport50
 
 env:
   global:

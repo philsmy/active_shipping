@@ -3,6 +3,7 @@
 module ActiveShipping
   class UPS < Carrier
     self.retry_safe = true
+    self.ssl_version = :TLSv1_2
 
     cattr_accessor :default_options
     cattr_reader :name
@@ -193,7 +194,7 @@ module ActiveShipping
       xml = parse_ship_confirm(confirm_response)
       success = response_success?(xml)
       message = response_message(xml)
-      raise message unless success
+      raise ActiveShipping::ResponseContentError, StandardError.new(message) unless success
       digest  = response_digest(xml)
 
       # STEP 2: Accept. Use shipment digest in first response to get the actual label.
@@ -317,7 +318,7 @@ module ActiveShipping
     # Build XML node to request a shipping label for the given packages.
     #
     # options:
-    # * origin_account: who will pay for the shipping label
+    # * origin_account: account number for the shipper
     # * customer_context: a "guid like substance" -- according to UPS
     # * shipper: who is sending the package and where it should be returned
     #     if it is undeliverable.
@@ -331,6 +332,7 @@ module ActiveShipping
     # * prepay: if truthy the shipper will be bill immediatly. Otherwise the shipper is billed when the label is used.
     # * negotiated_rates: if truthy negotiated rates will be requested from ups. Only valid if shipper account has negotiated rates.
     # * delivery_confirmation: Can be set to any key from SHIPMENT_DELIVERY_CONFIRMATION_CODES. Can also be set on package level via package.options
+    # * bill_third_party: When truthy, bill an account other than the shipper's. Specified by billing_(account, zip and country)
     def build_shipment_request(origin, destination, packages, options={})
       packages = Array(packages)
       shipper = options[:shipper] || origin
@@ -380,7 +382,7 @@ module ActiveShipping
               end
             end
 
-            if options[:origin_account]
+            if options[:negotiated_rates]
               xml.RateInformation do
                 xml.NegotiatedRatesIndicator
               end
@@ -396,23 +398,7 @@ module ActiveShipping
             if options[:prepay]
               xml.PaymentInformation do
                 xml.Prepaid do
-                  xml.BillShipper do
-                    xml.AccountNumber(options[:origin_account])
-                  end
-                end
-              end
-            elsif options[:bill_third_party]
-              xml.PaymentInformation do
-                xml.BillThirdParty do
-                  xml.BillThirdPartyShipper do
-                    xml.AccountNumber(options[:billing_account])
-                    xml.ThirdParty do
-                      xml.Address do
-                        xml.PostalCode(options[:billing_zip])
-                        xml.CountryCode(options[:billing_country])
-                      end
-                    end
-                  end
+                  build_billing_info_node(xml, options)
                 end
               end
             else
@@ -421,18 +407,14 @@ module ActiveShipping
                   # Type '01' means 'Transportation'
                   # This node specifies who will be billed for transportation.
                   xml.Type('01')
-                  xml.BillShipper do
-                    xml.AccountNumber(options[:origin_account])
-                  end
+                  build_billing_info_node(xml, options)
                 end
-                if options[:terms_of_shipment] == 'DDP'
+                if options[:terms_of_shipment] == 'DDP' && options[:international]
                   # DDP stands for delivery duty paid and means the shipper will cover duties and taxes
                   # Otherwise UPS will charge the receiver
                   xml.ShipmentCharge do
                     xml.Type('02') # Type '02' means 'Duties and Taxes'
-                    xml.BillShipper do
-                      xml.AccountNumber(options[:origin_account])
-                    end
+                    build_billing_info_node(xml, options.merge(bill_to_consignee: true))
                   end
                 end
               end
@@ -747,10 +729,38 @@ module ActiveShipping
               end
             end
           end
+
+          if package_value = package.options[:insured_value]
+            xml.InsuredValue do
+              xml.CurrencyCode(package.options[:currency] || 'USD')
+              xml.MonetaryValue(package_value.to_f)
+            end
+          end
         end
 
         # not implemented:  * Shipment/Package/LargePackageIndicator element
         #                   * Shipment/Package/AdditionalHandling element
+      end
+    end
+
+    def build_billing_info_node(xml, options={})
+      if options[:bill_third_party]
+        xml.BillThirdParty do
+          node_type = options[:bill_to_consignee] ? :BillThirdPartyConsignee : :BillThirdPartyShipper
+          xml.public_send(node_type) do
+            xml.AccountNumber(options[:billing_account])
+            xml.ThirdParty do
+              xml.Address do
+                xml.PostalCode(options[:billing_zip])
+                xml.CountryCode(options[:billing_country])
+              end
+            end
+          end
+        end
+      else
+        xml.BillShipper do
+          xml.AccountNumber(options[:origin_account])
+        end
       end
     end
 
@@ -842,7 +852,7 @@ module ActiveShipping
             type_code = activity.at('Status/StatusType/Code').text
             zoneless_time = parse_ups_datetime(:time => activity.at('Time'), :date => activity.at('Date'))
             location = location_from_address_node(activity.at('ActivityLocation/Address'))
-            ShipmentEvent.new(description, zoneless_time, location, nil, type_code)
+            ShipmentEvent.new(description, zoneless_time, location, description, type_code)
           end
 
           shipment_events = shipment_events.sort_by(&:time)

@@ -1,5 +1,7 @@
 module ActiveShipping
   class CanadaPostPWS < Carrier
+    
+    cattr_reader :name
     @@name = "Canada Post PWS"
 
     SHIPPING_SERVICES = {
@@ -481,11 +483,12 @@ module ActiveShipping
       raise ActiveShipping::ResponseError, "No Shipping" unless doc.at('non-contract-shipment-info')
       options = {
         :shipping_id      => doc.root.at('shipment-id').text,
-        :tracking_number  => doc.root.at('tracking-pin').text,
         :details_url      => doc.root.at_xpath("links/link[@rel='details']")['href'],
         :label_url        => doc.root.at_xpath("links/link[@rel='label']")['href'],
         :receipt_url      => doc.root.at_xpath("links/link[@rel='receipt']")['href'],
       }
+      options[:tracking_number] = doc.root.at('tracking-pin').text if doc.root.at('tracking-pin')
+
       CPPWSShippingResponse.new(true, "", {}, options)
     end
 
@@ -813,7 +816,7 @@ module ActiveShipping
   end
 
   class CPPWSTrackingResponse < TrackingResponse
-    DELIVERED_EVENT_CODES = %w(1496 1498 1499 1409 1410 1411 1412 1413 1414 1415 1416 1417 1418 1419 1420 1421 1422 1423 1424 1425 1426 1427 1428 1429 1430 1431 1432 1433 1434 1435 1436 1437 1438)
+    DELIVERED_EVENT_CODES = %w(1408 1409 1410 1411 1412 1413 1414 1415 1416 1417 1418 1419 1420 1421 1422 1423 1424 1425 1426 1427 1428 1429 1430 1431 1432 1433 1434 1435 1436 1437 1438 1441 1442 1496 1497 1498 1499 5300)
     include CPPWSErrorResponse
 
     attr_reader :service_name, :expected_date, :changed_date, :change_reason, :customer_number

@@ -32,6 +32,8 @@ module ActiveShipping
       easy.perform
       
       doc = Nokogiri::HTML(easy.body_str)
+      
+      easy.close
             
       doc.css(".tnt-tracking-history tr")
       

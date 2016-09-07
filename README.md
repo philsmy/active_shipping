@@ -25,6 +25,7 @@ Active Shipping is currently being used and improved in a production environment
 * [Kunaki](http://www.kunaki.com)
 * [RoyalMail](http://www.royalmail.com/) - tracking info only
 * [DHL](http://www.dhl.com/) -  tracking info only; currently only tested on 'Smartmail' tracking numbers
+* [Australia Post](http://auspost.com.au/)
 
 ## Installation
 
@@ -108,6 +109,12 @@ end
 # Scanned at FedEx sort facility at KNOXVILLE, TN on Fri Oct 24 05:56:00 UTC 2008.
 # Delivered at Knoxville, TN on Fri Oct 24 16:45:00 UTC 2008. Signed for by: T.BAKER
 ```
+
+#### FedEx connection notes
+
+The :login key passed to ```ActiveShipping::FedEx.new()``` is really the FedEx meter number, not the FedEx login.
+
+When developing with test credentials, be sure to pass ```test: true``` to ```ActiveShipping::FedEx.new()``` .
 
 ## Running the tests
 

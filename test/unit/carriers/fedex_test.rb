@@ -327,6 +327,18 @@ class FedExTest < Minitest::Test
     end
   end
 
+  def test_response_failure_code_9045
+    mock_response = xml_fixture('fedex/tracking_response_failure_code_9045')
+    @carrier.expects(:commit).returns(mock_response)
+
+    error = assert_raises(ActiveShipping::ResponseContentError) do
+      @carrier.find_tracking_info('123456789013')
+    end
+
+    msg = 'Sorry, we are unable to process your tracking request.  Please retry later, or contact Customer Service at 1.800.Go.FedEx(R) 800.463.3339.'
+    assert_equal msg, error.message
+  end
+
   def test_parsing_response_without_notifications
     mock_response = xml_fixture('fedex/reply_without_notifications')
 
@@ -587,6 +599,43 @@ class FedExTest < Minitest::Test
                                          packages,
                                          :test => true))
     assert_equal result.search('RequestedPackageLineItems/CustomerReferences/Value').text, "FOO-123"
+  end
+
+  def test_create_shipment_label_format_option
+    packages = package_fixtures.values_at(:chocolate_stuff)
+    result = Nokogiri::XML(@carrier.send(:build_shipment_request,
+                                         location_fixtures[:beverly_hills],
+                                         location_fixtures[:annapolis],
+                                         packages,
+                                         :label_format => 'ZPLII',
+                                         :test => true))
+    assert_equal result.search('RequestedShipment/LabelSpecification/ImageType').text, "ZPLII"
+  end
+
+  def test_create_shipment_default_label_stock_type
+    packages = package_fixtures.values_at(:wii)
+
+    result = Nokogiri::XML(@carrier.send(:build_shipment_request,
+                                         location_fixtures[:beverly_hills],
+                                         location_fixtures[:annapolis],
+                                         packages,
+                                         :test => true))
+
+    assert_equal result.search('RequestedShipment/LabelSpecification/LabelStockType').text, FedEx::DEFAULT_LABEL_STOCK_TYPE
+  end
+
+  def test_create_shipment_label_stock_type
+    label_stock_type = 'PAPER_4X6'
+    packages = package_fixtures.values_at(:wii)
+
+    result = Nokogiri::XML(@carrier.send(:build_shipment_request,
+                                         location_fixtures[:beverly_hills],
+                                         location_fixtures[:annapolis],
+                                         packages,
+                                         :test => true,
+                                         :label_stock_type => label_stock_type))
+
+    assert_equal result.search('RequestedShipment/LabelSpecification/LabelStockType').text, label_stock_type
   end
 
   def test_maximum_address_field_length

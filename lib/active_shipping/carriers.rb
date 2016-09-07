@@ -35,3 +35,4 @@ ActiveShipping::Carriers.register :Stamps,           'active_shipping/carriers/s
 ActiveShipping::Carriers.register :Correios,         'active_shipping/carriers/correios'
 ActiveShipping::Carriers.register :RoyalMail,        'active_shipping/carriers/royal_mail'
 ActiveShipping::Carriers.register :Dhl,              'active_shipping/carriers/dhl'
+ActiveShipping::Carriers.register :AustraliaPost,    'active_shipping/carriers/australia_post'

@@ -6,6 +6,7 @@ module ActiveShipping
     @@name = "Royal Mail"
 
     LIVE_TRACKING_URL = 'https://www.royalmail.com/business/track-your-item?trackNumber=%s&op='
+    DATE_PARSER_STR = "%d/%m/%y %H:%M %Z"
 
     # Retrieves tracking information for a previous shipment
     #
@@ -29,6 +30,10 @@ module ActiveShipping
       easy.timeout = options[:timeout].present? ? options[:timeout] : 20
       easy.proxy_url = options[:proxy_url] if options[:proxy_url].present?
       easy.proxy_port = options[:proxy_port] if options[:proxy_port].present?
+      if options[:proxy_tunnel].present? && options[:proxy_tunnel]
+        easy.proxy_tunnel = true
+        easy.proxy_type = options[:proxy_type]
+      end
       easy.perform
       
       doc = Nokogiri::HTML(easy.body_str)
@@ -58,7 +63,7 @@ module ActiveShipping
       rows.each do |activity|
         description = activity.css("td")[2].text
         time_str = "#{activity.css("td")[0].text} #{activity.css("td")[1].text} GMT"
-        zoneless_time = Time.parse(time_str)
+        zoneless_time = DateTime.strptime(time_str, date_parser_str)
         location = activity.css("td")[3].text
         p "#{description}, #{zoneless_time}, #{location}"
         shipment_events << ShipmentEvent.new(description, zoneless_time, location, nil, nil)

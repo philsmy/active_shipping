@@ -63,7 +63,7 @@ module ActiveShipping
       rows.each do |activity|
         description = activity.css("td")[2].text
         time_str = "#{activity.css("td")[0].text} #{activity.css("td")[1].text} GMT"
-        zoneless_time = DateTime.strptime(time_str, date_parser_str)
+        zoneless_time = DateTime.strptime(time_str, DATE_PARSER_STR)
         location = activity.css("td")[3].text
         p "#{description}, #{zoneless_time}, #{location}"
         shipment_events << ShipmentEvent.new(description, zoneless_time, location, nil, nil)

@@ -1,5 +1,14 @@
 module ActiveShipping
   class CanadaPostPWS < Carrier
+    TRACKING_STATUS_CODES = HashWithIndifferentAccess.new(
+      'Item in transit' => :in_transit,
+      'Item out for delivery' => :out_for_delivery,
+      'Shipment picked up by Canada Post' => :picked_up,
+      'Delivered' => :delivered,
+      'Delivered to community mailbox or parcel locker' => :delivered,
+      'Delivered to building superintendent or security agent' => :delivered,
+      'Electronic information submitted by shipper' => :registered,
+    )
     
     cattr_reader :name
     @@name = "Canada Post PWS"
@@ -299,6 +308,7 @@ module ActiveShipping
       dest_postal_code = doc.root.at('destination-postal-id').text
       destination      = Location.new(:postal_code => dest_postal_code)
       origin           = Location.new(origin_hash_for(doc.root))
+      status           = TRACKING_STATUS_CODES[shipment_events.first.message]
       options = {
         :carrier                 => @@name,
         :service_name            => doc.root.at('service-name').text,
@@ -310,6 +320,7 @@ module ActiveShipping
         :tracking_number         => doc.root.at('pin').text,
         :origin                  => origin,
         :destination             => destination,
+        :status                  => status,
         :customer_number         => doc.root.at('mailed-by-customer-number').text
       }
 

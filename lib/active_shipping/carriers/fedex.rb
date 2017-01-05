@@ -137,7 +137,11 @@ module ActiveShipping
     DEFAULT_LABEL_STOCK_TYPE = 'PAPER_7X4.75'
 
     # Available return formats for image data when creating labels
-    LABEL_FORMATS = ['DPL', 'EPL2', 'PDF', 'ZPLII', 'PNG'] 
+    LABEL_FORMATS = %w(DPL EPL2 PDF ZPLII PNG).freeze
+
+    TRANSIENT_TRACK_RESPONSE_CODES = %w(9035 9040 9041 9045 9050 9055 9060 9065 9070 9075 9085 9086 9090).freeze
+
+    UNRECOVERABLE_TRACK_RESPONSE_CODES = %w(9080 9081 9082 9095 9100).freeze
 
     def self.service_name_for_code(service_code)
       SERVICE_TYPES[service_code] || "FedEx #{service_code.titleize.sub(/Fedex /, '')}"
@@ -238,8 +242,8 @@ module ActiveShipping
                 # Reference Numbers
                 reference_numbers = Array(package.options[:reference_numbers])
                 if reference_numbers.size > 0
-                  xml.CustomerReferences do
-                    reference_numbers.each do |reference_number_info|
+                  reference_numbers.each do |reference_number_info|
+                    xml.CustomerReferences do
                       xml.CustomerReferenceType(reference_number_info[:type] || "CUSTOMER_REFERENCE")
                       xml.Value(reference_number_info[:value])
                     end
@@ -604,36 +608,31 @@ module ActiveShipping
 
 
         first_notification = tracking_details.at('Notification')
-        if first_notification.at('Severity').text == 'ERROR'
-          case first_notification.at('Code').text
-          when '9040'
+        severity = first_notification.at('Severity').text
+        if severity == 'ERROR' || severity == 'FAILURE'
+          message = first_notification.try(:text)
+          code = first_notification.at('Code').try(:text)
+          case code
+          when *TRANSIENT_TRACK_RESPONSE_CODES
             raise ActiveShipping::ShipmentNotFound, first_notification.at('Message').text
           else
-            raise ActiveShipping::ResponseContentError, StandardError.new(first_notification.at('Message').text)
-          end
-        elsif first_notification.at('Severity').text == 'FAILURE'
-          case first_notification.at('Code').text
-          when '9045'
             raise ActiveShipping::ResponseContentError, StandardError.new(first_notification.at('Message').text)
           end
         end
 
         tracking_number = tracking_details.at('TrackingNumber').text
         status_detail = tracking_details.at('StatusDetail')
-        if status_detail.nil?
-          raise ActiveShipping::Error, "Tracking response does not contain status information"
-        end
+        if status_detail.blank?
+          status_code, status, status_description, delivery_signature = nil
+        else
+          status_code = status_detail.at('Code').try(:text)
+          status_description = status_detail.at('AncillaryDetails/ReasonDescription').try(:text) || status_detail.at('Description').try(:text)
 
-        status_code = status_detail.at('Code').try(:text)
-        if status_code.nil?
-          raise ActiveShipping::Error, "Tracking response does not contain status code"
-        end
+          status = TRACKING_STATUS_CODES[status_code]
 
-        status_description = (status_detail.at('AncillaryDetails/ReasonDescription') || status_detail.at('Description')).text
-        status = TRACKING_STATUS_CODES[status_code]
-
-        if status_code == 'DL' && tracking_details.at('AvailableImages').try(:text) == 'SIGNATURE_PROOF_OF_DELIVERY'
-          delivery_signature = tracking_details.at('DeliverySignatureName').text
+          if status_code == 'DL' && tracking_details.at('AvailableImages').try(:text) == 'SIGNATURE_PROOF_OF_DELIVERY'
+            delivery_signature = tracking_details.at('DeliverySignatureName').try(:text)
+          end
         end
 
         if origin_node = tracking_details.at('OriginLocationAddress')

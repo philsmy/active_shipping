@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 module ActiveShipping
   # After getting an API login from USPS (looks like '123YOURNAME456'),
   # run the following test:
@@ -118,8 +116,6 @@ module ActiveShipping
     # Array of U.S. possessions according to USPS: https://www.usps.com/ship/official-abbreviations.htm
     US_POSSESSIONS = %w(AS FM GU MH MP PW PR VI)
 
-    # TODO: figure out how USPS likes to say "Ivory Coast"
-    #
     # Country names:
     # http://pe.usps.gov/text/Imm/immctry.htm
     COUNTRY_NAME_CONVERSIONS = {
@@ -235,7 +231,7 @@ module ActiveShipping
     end
 
     def maximum_weight
-      Mass.new(70, :pounds)
+      Measured::Weight.new(70, :pounds)
     end
 
     def extract_event_details(node)

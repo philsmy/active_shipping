@@ -1,6 +1,7 @@
 require 'bundler/setup'
 
 require 'minitest/autorun'
+require "minitest/reporters"
 require 'mocha/mini_test'
 require 'timecop'
 require 'business_time'
@@ -8,16 +9,18 @@ require 'business_time'
 require 'active_shipping'
 require 'logger'
 require 'erb'
+require 'pry'
 
-# This makes sure that Minitest::Test exists when an older version of Minitest
-# (i.e. 4.x) is required by ActiveSupport.
-unless defined?(Minitest::Test)
-  Minitest::Test = MiniTest::Unit::TestCase
-end
+require_relative 'helpers/holiday_helpers.rb'
 
+Minitest::Reporters.use! Minitest::Reporters::ProgressReporter.new(detailed_skip: !!ENV["CI"])
 
-class Minitest::Test
+class ActiveSupport::TestCase
   include ActiveShipping
+
+  def logger
+    @logger ||= Logger.new(STDERR)
+  end
 end
 
 module ActiveShipping::Test

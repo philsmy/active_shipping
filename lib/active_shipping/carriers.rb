@@ -36,3 +36,4 @@ ActiveShipping::Carriers.register :Correios,         'active_shipping/carriers/c
 ActiveShipping::Carriers.register :RoyalMail,        'active_shipping/carriers/royal_mail'
 ActiveShipping::Carriers.register :Dhl,              'active_shipping/carriers/dhl'
 ActiveShipping::Carriers.register :AustraliaPost,    'active_shipping/carriers/australia_post'
+ActiveShipping::Carriers.register :GlsItaly,        'active_shipping/carriers/gls_italy'

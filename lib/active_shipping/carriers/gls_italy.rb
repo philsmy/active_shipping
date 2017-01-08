@@ -69,6 +69,9 @@ module ActiveShipping
         if status_description =~ /CONSEGNATA/i
           status = :delivered
         end
+        if status_description =~ /Arrivata in sede destinataria/i
+          status = :delivered
+        end
         if status_description =~ /item number isn't recognised/i
           status = :not_recognized
           success = false

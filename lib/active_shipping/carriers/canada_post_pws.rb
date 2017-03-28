@@ -334,11 +334,12 @@ module ActiveShipping
         zone      = event.at('event-time-zone').text
         timestamp = DateTime.parse("#{date} #{time} #{zone}")
         time      = Time.utc(timestamp.utc.year, timestamp.utc.month, timestamp.utc.day, timestamp.utc.hour, timestamp.utc.min, timestamp.utc.sec)
+        name   = event.at('event-description').text
         message   = event.at('event-description').text
         location  = [event.at('event-retail-name'), event.at('event-site'), event.at('event-province')].
                       reject { |e| e.nil? || e.text.empty? }.join(", ")
-        name      = event.at('event-identifier').text
-        ShipmentEvent.new(name, time, location, message)
+        type_code      = event.at('event-identifier').text
+        ShipmentEvent.new(name, time, location, message, type_code)
       end
     end
 

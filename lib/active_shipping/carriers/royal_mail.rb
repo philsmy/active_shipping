@@ -72,7 +72,7 @@ module ActiveShipping
         end
         location = activity.css("td")[3].text
         p "#{description}, #{zoneless_time}, #{location}"
-        shipment_events << ShipmentEvent.new(description, zoneless_time, location, nil, nil)
+        shipment_events << ShipmentEvent.new(description, zoneless_time, location)
       end
 
       shipment_events = shipment_events.sort_by(&:time)

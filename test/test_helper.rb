@@ -10,10 +10,18 @@ require 'active_shipping'
 require 'logger'
 require 'erb'
 require 'pry'
+require 'vcr'
+require 'webmock/minitest'
 
 require_relative 'helpers/holiday_helpers.rb'
 
 Minitest::Reporters.use! Minitest::Reporters::ProgressReporter.new(detailed_skip: !!ENV["CI"])
+
+VCR.configure do |config|
+  config.cassette_library_dir = 'test/remote/vcr_cassettes'
+  config.allow_http_connections_when_no_cassette = true
+  config.hook_into :webmock
+end
 
 class ActiveSupport::TestCase
   include ActiveShipping
@@ -134,6 +142,15 @@ module ActiveShipping::Test
                                       :address1 => '455 N. Rexford Dr.',
                                       :address2 => '3rd Floor',
                                       :zip => '90210',
+                                      :phone => '1-310-285-1013',
+                                      :fax => '1-310-275-8159'),
+        :beverly_hills_9_zip => Location.new(
+                                      :country => 'US',
+                                      :state => 'CA',
+                                      :city => 'Beverly Hills',
+                                      :address1 => '455 N. Rexford Dr.',
+                                      :address2 => '3rd Floor',
+                                      :zip => '90210-1234',
                                       :phone => '1-310-285-1013',
                                       :fax => '1-310-275-8159'),
         :real_home_as_commercial => Location.new(
@@ -260,8 +277,14 @@ module ActiveShipping::Test
                                       :city => 'Melbourne',
                                       :state => 'VIC',
                                       :address1 => '192 George Street',
-                                      :postal_code => '3108')
+                                      :postal_code => '3108'),
+        :kosovo => Location.new(
+                                      :country => 'XK',
+                                      :city => 'Prishtinë',
+                                      :address1 => 'Ahmet Krasniqi',
+                                      :postal_code => '10000')
       }
+
     end
 
     def line_item_fixture

@@ -20,10 +20,8 @@ Gem::Specification.new do |s|
 
   s.add_dependency('quantified',    '~> 1.0.1')
   s.add_dependency("activesupport", ">= 4.2", "< 5.1.0")
-  s.add_dependency('active_utils',  '~> 3.2.0')
-  s.add_dependency('nokogiri',      '>= 1.6')
-  s.add_dependency('curb')
-  s.add_dependency("measured", "~> 1.6.0")
+  s.add_dependency("active_utils", "~> 3.3.0")
+  s.add_dependency("nokogiri", ">= 1.6")
 
   s.add_development_dependency("minitest")
   s.add_development_dependency("minitest-reporters")
@@ -32,4 +30,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency("timecop")
   s.add_development_dependency("business_time")
   s.add_development_dependency("pry")
+  s.add_development_dependency("pry-byebug")
+  s.add_development_dependency("vcr")
+  s.add_development_dependency("webmock")
 end

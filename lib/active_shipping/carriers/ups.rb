@@ -16,7 +16,8 @@ module ActiveShipping
       :ship_confirm => 'ups.app/xml/ShipConfirm',
       :ship_accept => 'ups.app/xml/ShipAccept',
       :delivery_dates =>  'ups.app/xml/TimeInTransit',
-      :void =>  'ups.app/xml/Void'
+      :void =>  'ups.app/xml/Void',
+      :validate_address => 'ups.app/xml/XAV'
     }
 
     PICKUP_CODES = HashWithIndifferentAccess.new(
@@ -126,6 +127,10 @@ module ActiveShipping
 
     IMPERIAL_COUNTRIES = %w(US LR MM)
 
+    COUNTRY_MAPPING = {
+      'XK' => 'KV'
+    }.freeze
+
     DEFAULT_SERVICE_NAME_TO_CODE = Hash[UPS::DEFAULT_SERVICES.to_a.map(&:reverse)]
     DEFAULT_SERVICE_NAME_TO_CODE['UPS 2nd Day Air'] = "02"
     DEFAULT_SERVICE_NAME_TO_CODE['UPS 3 Day Select'] = "12"
@@ -228,6 +233,21 @@ module ActiveShipping
     def maximum_address_field_length
       # http://www.ups.com/worldshiphelp/WS12/ENU/AppHelp/CONNECT/Shipment_Data_Field_Descriptions.htm
       35
+    end
+
+    # Validates a location with the Street Level Validation service
+    #
+    # @param location [Location] The Location to validate
+    # @return [ActiveShipping::AddressValidationResponse] The response from the validation endpoint. This
+    #   response will determine if the given address is valid or not, its commercial/residential classification,
+    #   and the cleaned-up address and/or potential candidate addresses if the passed location can't be found
+    def validate_address(location, options = {})
+      location = upsified_location(location)
+      options = @options.merge(options)
+      access_request = build_access_request
+      address_validation_request = build_address_validation_request(location, options)
+      response = commit(:validate_address, save_request(access_request + address_validation_request), options[:test])
+      parse_address_validation_response(location, response, options)
     end
 
     protected
@@ -654,7 +674,7 @@ module ActiveShipping
           xml.StateProvinceCode(location.province) unless location.province.blank?
           # StateProvinceCode required for negotiated rates but not otherwise, for some reason
           xml.PostalCode(location.postal_code) unless location.postal_code.blank?
-          xml.CountryCode(location.country_code(:alpha2)) unless location.country_code(:alpha2).blank?
+          xml.CountryCode(mapped_country_code(location.country_code(:alpha2))) unless location.country_code(:alpha2).blank?
           xml.ResidentialAddressIndicator(true) unless location.commercial? # the default should be that UPS returns residential rates for destinations that it doesn't know about
           # not implemented: Shipment/(Shipper|ShipTo|ShipFrom)/Address/ResidentialAddressIndicator element
         end
@@ -666,7 +686,7 @@ module ActiveShipping
         xml.AddressArtifactFormat do
           xml.PoliticalDivision2(location.city)
           xml.PoliticalDivision1(location.province)
-          xml.CountryCode(location.country_code(:alpha2))
+          xml.CountryCode(mapped_country_code(location.country_code(:alpha2)))
           xml.PostcodePrimaryLow(location.postal_code)
           xml.ResidentialAddressIndicator(true) unless location.commercial?
         end
@@ -769,7 +789,7 @@ module ActiveShipping
             xml.ThirdParty do
               xml.Address do
                 xml.PostalCode(options[:billing_zip])
-                xml.CountryCode(options[:billing_country])
+                xml.CountryCode(mapped_country_code(options[:billing_country]))
               end
             end
           end
@@ -961,10 +981,102 @@ module ActiveShipping
       end
     end
 
+    def build_address_validation_request(location, options = {})
+      xml_builder = Nokogiri::XML::Builder.new do |xml|
+        xml.AddressValidationRequest do
+          xml.Request do
+            xml.RequestAction('XAV')
+            xml.RequestOption('3')
+
+            if options[:customer_context]
+              xml.TransactionReference do
+                xml.CustomerContext(options[:customer_context])
+                xml.XpciVersion("1.0")
+              end
+            end
+          end
+
+          xml.AddressKeyFormat do
+            xml.AddressLine(location.address1)
+            if location.address2.present?
+              xml.AddressLine(location.address2)
+            end
+            xml.PoliticalDivision2(location.city)
+            xml.PoliticalDivision1(location.state)
+            xml.PostcodePrimaryLow(location.postal_code)
+            xml.CountryCode(mapped_country_code(location.country_code))
+          end
+        end
+      end
+
+      xml_builder.to_xml
+    end
+
+    def parse_address_validation_response(address, response, options={})
+      xml     = build_document(response, 'AddressValidationResponse')
+      success = response_success?(xml)
+      message = response_message(xml)
+
+      validity = nil
+      classification_code = nil
+      classification_description = nil
+      addresses = []
+
+      if success
+        if xml.at('AddressClassification/Code').present?
+          classification_code = xml.at('AddressClassification/Code').text
+        end
+
+        classification = case classification_code
+        when "1"
+          :commercial
+        when "2"
+          :residential
+        else
+          :unknown
+        end
+
+        validity = if xml.at("ValidAddressIndicator").present?
+          :valid
+        elsif xml.at("AmbiguousAddressIndicator").present?
+          :ambiguous
+        elsif xml.at("NoCandidatesIndicator").present?
+          :invalid
+        else
+          :unknown
+        end
+
+        addresses = xml.css('AddressKeyFormat').collect { |node| location_from_address_key_format_node(node) }
+      end
+
+      params = Hash.from_xml(response).values.first
+      response = AddressValidationResponse.new(success, message, params, :validity => validity, :classification => classification, :candidate_addresses => addresses, :xml => response, :request => last_request)
+    end
+
+    # Converts from a AddressKeyFormat XML node to a Location
+    def location_from_address_key_format_node(address)
+      return nil unless address
+      country = address.at('CountryCode').try(:text)
+      country = 'US' if country == 'ZZ' # Sometimes returned by SUREPOST in the US
+
+      address_lines = address.css('AddressLine')
+
+      Location.new(
+        :country     => country,
+        :postal_code => address.at('PostcodePrimaryLow').try(:text),
+        :province    => address.at('PoliticalDivision1').try(:text),
+        :city        => address.at('PoliticalDivision2').try(:text),
+        :address1    => address_lines[0].try(:text),
+        :address2    => address_lines[1].try(:text),
+        :address3    => address_lines[2].try(:text),
+      )
+    end
+
     def location_from_address_node(address)
       return nil unless address
       country = address.at('CountryCode').try(:text)
       country = 'US' if country == 'ZZ' # Sometimes returned by SUREPOST in the US
+      country = 'XK' if country == 'KV' # ActiveUtils now refers to Kosovo by XK
       Location.new(
         :country     => country,
         :postal_code => address.at('PostalCode').try(:text),
@@ -1093,6 +1205,10 @@ module ActiveShipping
     def package_level_delivery_confirmation?(origin, destination)
       origin.country_code == destination.country_code ||
       [['US','PR'], ['PR','US']].include?([origin,destination].map(&:country_code))
+    end
+
+    def mapped_country_code(country_code)
+      COUNTRY_MAPPING[country_code].presence || country_code
     end
   end
 end

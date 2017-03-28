@@ -15,6 +15,11 @@ class USPSTest < ActiveSupport::TestCase
     ]
   end
 
+  def test_using_tls_and_not_ssl_v3
+    refute_equal :SSLv3, @carrier.ssl_version, 'SSLv3 is no longer supported by USPS Web Tools'
+    assert_equal :TLSv1_2, @carrier.ssl_version
+  end
+
   def test_tracking_request_should_create_correct_xml
     @carrier.expects(:commit).with(:track, xml_fixture('usps/tracking_request'),false).returns(@tracking_response)
     @carrier.find_tracking_info('9102901000462189604217', :destination_zip => '12345', :mailing_date => Date.new(2010,1,30))
@@ -384,6 +389,13 @@ class USPSTest < ActiveSupport::TestCase
     assert request =~ /\>90210\</
     assert !(request =~ /\>123456789\</)
     assert request =~ /\>12345\</
+  end
+
+  def test_strip_9_digit_zip_codes_world_rates
+    request = URI.decode(@carrier.send(:build_world_rate_request, location_fixtures[:beverly_hills_9_zip],
+                                        package_fixtures[:book], location_fixtures[:auckland], {}))
+    refute_match /\<OriginZip\>90210-1234/, request
+    assert_match /\<OriginZip\>90210/, request
   end
 
   def test_maximum_weight

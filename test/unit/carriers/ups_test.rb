@@ -173,6 +173,30 @@ class UPSTest < ActiveSupport::TestCase
     assert_empty response.shipment_events
   end
 
+  def test_location_from_address_node_kosovo_kv
+    address = Nokogiri::XML::DocumentFragment.parse(xml_fixture('ups/location_node_kosovo_kv'))
+
+    parsed = @carrier.send(:location_from_address_node, address)
+    assert_equal 'XK', parsed.country_code
+    assert_equal 'Kosovo', parsed.country.name
+  end
+
+  def test_location_from_address_node_kosovo_xk
+    address = Nokogiri::XML::DocumentFragment.parse(xml_fixture('ups/location_node_kosovo_xk'))
+
+    parsed = @carrier.send(:location_from_address_node, address)
+    assert_equal 'XK', parsed.country_code
+    assert_equal 'Kosovo', parsed.country.name
+  end
+
+  def test_location_from_address_node_zz
+    address = Nokogiri::XML::DocumentFragment.parse(xml_fixture('ups/location_node_zz'))
+
+    parsed = @carrier.send(:location_from_address_node, address)
+    assert_equal 'US', parsed.country_code
+    assert_equal 'United States', parsed.country.name
+  end
+
   def test_response_parsing_an_oversize_package
     mock_response = xml_fixture('ups/package_exceeds_maximum_length')
     @carrier.expects(:commit).returns(mock_response)
@@ -627,5 +651,76 @@ class UPSTest < ActiveSupport::TestCase
     request = Nokogiri::XML(xml_builder.to_xml)
     assert_equal 'OZS', request.search('/Package/PackageWeight/UnitOfMeasurement/Code').text
     assert_equal '8.0', request.search('/Package/PackageWeight/Weight').text
+  end
+
+  def test_address_validation
+    location = Location.new(address1: "55 Glenlake Parkway", city: "Atlanta", state: "GA", zip: "30328", country: "US")
+    address_validation_response = xml_fixture('ups/address_validation_response')
+    @carrier.expects(:commit).returns(address_validation_response)
+    response = @carrier.validate_address(location)
+    assert_equal :commercial, response.classification
+    assert_equal true, response.address_match?
+  end
+
+  def test_address_validation_ambiguous
+    location = Location.new(address1: "55 Glen", city: "Atlanta", state: "GA", zip: "30328", country: "US")
+    address_validation_response = xml_fixture('ups/address_validation_response_ambiguous')
+    @carrier.expects(:commit).returns(address_validation_response)
+    response = @carrier.validate_address(location)
+    assert_equal false, response.address_match?
+    assert_equal :ambiguous, response.validity
+  end
+
+  def test_address_validation_no_candidates
+    location = Location.new(address1: "55 Glenblagahrhadd", city: "Atlanta", state: "GA", zip: "30321", country: "US")
+    address_validation_response = xml_fixture('ups/address_validation_response_no_candidates')
+    @carrier.expects(:commit).returns(address_validation_response)
+    response = @carrier.validate_address(location)
+    assert_equal false, response.address_match?
+    assert_equal :invalid, response.validity
+  end
+
+  def test_kosovo_location_node
+    xml_builder = Nokogiri::XML::Builder.new do |xml|
+      @carrier.send(:build_location_node,
+                    xml,
+                    "KosovoRequest",
+                    location_fixtures[:kosovo],
+                    {}
+      )
+    end
+    request = Nokogiri::XML(xml_builder.to_xml)
+    assert_equal 'KV', request.search('/KosovoRequest/Address/CountryCode').text
+  end
+
+  def test_kosovo_build_address_artifact_format_location
+    xml_builder = Nokogiri::XML::Builder.new do |xml|
+      @carrier.send(:build_address_artifact_format_location,
+                    xml,
+                    "KosovoRequest",
+                    location_fixtures[:kosovo]
+      )
+    end
+    request = Nokogiri::XML(xml_builder.to_xml)
+    assert_equal 'KV', request.search('/KosovoRequest/AddressArtifactFormat/CountryCode').text
+  end
+
+  def test_kosovo_build_address_validation_request
+    xml = @carrier.send(:build_address_validation_request, location_fixtures[:kosovo])
+    request = Nokogiri::XML(xml)
+    assert_equal 'KV', request.search('/AddressValidationRequest/AddressKeyFormat/CountryCode').text
+  end
+
+  def test_kosovo_build_billing_info_node
+    options = {bill_third_party: true, bill_to_consignee: true, billing_account: 12345,
+               billing_zip: 12345, billing_country: 'XK'}
+    xml_builder = Nokogiri::XML::Builder.new do |xml|
+      @carrier.send(:build_billing_info_node,
+                    xml,
+                    options
+      )
+    end
+    request = Nokogiri::XML(xml_builder.to_xml)
+    assert_equal 'KV', request.search('/BillThirdParty/BillThirdPartyConsignee/ThirdParty/Address/CountryCode').text
   end
 end

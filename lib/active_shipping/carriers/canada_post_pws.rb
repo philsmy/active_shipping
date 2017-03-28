@@ -342,6 +342,10 @@ module ActiveShipping
         :customer_number         => doc.root.at('mailed-by-customer-number').text
       }
 
+      if status == :delivered
+        options[:actual_delivery_date] = shipment_events.first.time
+      end
+
       CPPWSTrackingResponse.new(true, "", {}, options)
     end
 

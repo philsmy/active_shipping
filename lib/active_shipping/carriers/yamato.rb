@@ -1,12 +1,29 @@
+# http://track.kuronekoyamato.co.jp/english/tracking
+# timeid=GocanH5IIY7LLE5X37xNJ59onTNw8AoV
+# number00=1
+# sch=&#160;&#160;&#160;&#160;Track&#160;&#160;&#160;&#160;
+# number01=443695344411
+# number02
+# number03
+# number04
+# number05
+# number06
+# number07
+# number08
+# number09
+# number10
+
+
 require 'curl'
 
 module ActiveShipping
-  class JapanPost < Carrier
+  class Yamato < Carrier
     cattr_reader :name
-    @@name = "Japan Post"
+    @@name = "Yamato"
 
-    LIVE_TRACKING_URL = 'http://tracking.post.japanpost.jp/services/sp/srv/search/?requestNo1=%s&search=Beginning&locale=en'
-    DATE_PARSER_STR = "%b %d %H:%M %Z"
+    LIVE_TRACKING_URL = 'http://track.kuronekoyamato.co.jp/english/tracking'
+    DATE_PARSER_STR = "%m/%d %H:%M %Z"
+    USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:53.0) Gecko/20100101 Firefox/53.0"
 
     # Retrieves tracking information for a previous shipment
     #
@@ -26,7 +43,9 @@ module ActiveShipping
       scheduled_delivery_date, actual_delivery_date = nil
       delivered = false
       
-      easy = Curl::Easy.new(LIVE_TRACKING_URL % tracking_number)
+      easy = Curl::Easy.new(LIVE_TRACKING_URL))
+      easy.headers["User-Agent"] = USER_AGENT
+      easy.headers["Referer"] = "http://track.kuronekoyamato.co.jp/english/tracking"
       easy.timeout = options[:timeout].present? ? options[:timeout] : 20
       easy.proxy_url = options[:proxy_url] if options[:proxy_url].present?
       easy.proxy_port = options[:proxy_port] if options[:proxy_port].present?
@@ -34,24 +53,26 @@ module ActiveShipping
         easy.proxy_tunnel = true
         easy.proxy_type = options[:proxy_type]
       end
-      easy.perform
+      # easy.perform
+      easy.http_post(Curl::PostField.content("timeid","GocanH5IIY7LLE5X37xNJ59onTNw8AoV"),
+                                    Curl::PostField.content("sch", "&#160;&#160;&#160;&#160;Track&#160;&#160;&#160;&#160;"),
+                                     Curl::PostField.content('number00', '1'),
+                                     Curl::PostField.content('number01', tracking_number))
       
       doc = Nokogiri::HTML(easy.body_str)
       
       easy.close
-            
-      doc.css("div#smt-tracking dt")
-      
+
       success = true
       
-      status_description = doc.css('div#smt-tracking dt').last.text
+      status_description = doc.css('table.meisai tr:last td')[1].text.squish
       
       status = status_description.downcase.to_sym
-      if status_description =~ /final delivery/i
+      if status_description =~ /delivered/i
         status = :delivered
         delivered = true
       end
-      if status_description =~ /processing/i
+      if status_description =~ /transit/i
         status = :in_transit
       end
       # if status_description =~ /item number isn't recognised/i
@@ -60,24 +81,21 @@ module ActiveShipping
       # end
 
 
-      rows = doc.css("div#smt-tracking .tracking_form").children
+      rows = doc.css("table.meisai tr:not(:first-child)")
       
       shipment_events = []
       
       rows.each_with_index do |activity, i|
-        if activity.children.size == 1
-          description = activity.text.squish
-          detail = rows[i+2]
-          
-          time_str = detail.children[0].text.squish + " PST"
-          actual_time = DateTime.strptime(time_str, DATE_PARSER_STR)
-          p actual_time
-          location = detail.children[5].text.squish
+        description = activity.css("td")[1].text.squish
+        detail = rows[i+2]
+        
+        time_str = "#{activity.css("td")[2].text.squish} #{activity.css("td")[3].text.squish} JST"
+        actual_time = DateTime.strptime(time_str, DATE_PARSER_STR)
+        # p actual_time
+        location = ""
 
-          p "#{description}, #{actual_time}, #{location}"
-          shipment_events << ShipmentEvent.new(description, actual_time, location)
-        end
-
+        p "#{description}, #{actual_time}, #{location}"
+        # shipment_events << ShipmentEvent.new(description, actual_time, location)
       end
 
       shipment_events = shipment_events.sort_by(&:time)

@@ -95,7 +95,7 @@ module ActiveShipping
         location = ""
 
         p "#{description}, #{actual_time}, #{location}"
-        # shipment_events << ShipmentEvent.new(description, actual_time, location)
+        shipment_events << ShipmentEvent.new(description, actual_time, location)
       end
 
       shipment_events = shipment_events.sort_by(&:time)

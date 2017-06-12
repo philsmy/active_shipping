@@ -79,6 +79,7 @@ module ActiveShipping
 
         if status == :delivered
           actual_delivery_date = shipment_events.first.time
+          delivered = true
         end
       
         shipment_events = shipment_events.sort_by(&:time)

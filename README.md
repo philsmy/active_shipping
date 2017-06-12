@@ -7,9 +7,6 @@ This library interfaces with the web services of various shipping carriers. The 
 - Tracking shipments
 - Purchasing shipping labels
 
-Active Shipping is currently being used and improved in a production environment for [Shopify](http://shopify.com).
-
-
 ## Supported Shipping Carriers
 
 * [UPS](http://www.ups.com)
@@ -24,14 +21,13 @@ Active Shipping is currently being used and improved in a production environment
 * [RoyalMail](http://www.royalmail.com/) - tracking info only
 * [DHL](http://www.dhl.com/) -  tracking info only; currently only tested on 'Smartmail' tracking numbers
 * [Australia Post](http://auspost.com.au/)
+* [Japan Post](http://www.post.japanpost.jp)
+* [GLS Italy](https://www.gls-italy.com/)
 
 
 ## Versions
-
-Development on `master` is for a pre-release of the `2.x` version of this gem. It includes a number of backwards incompatible changes and improvements. Progress can be tracked in [the milestone](https://github.com/Shopify/active_shipping/milestone/1).
-
-We are no longer actively developing version `1.x`. We have released `1.9` and will only backport small fixes to this version, on branch `1-9-stable`, and they should be on `master` first.
-
+Note: `2.x` contains breaking changes, please see the [changelog](https://github.com/Shopify/active_shipping/blob/master/CHANGELOG.md). Shopify will not be actively contibuting to the 2.0 version of this gem and is looking for maintainers.
+We have released `1.9` and will only backport small fixes to this version, on branch `1-9-stable`, and they should be on `master` first.
 
 ## Installation
 

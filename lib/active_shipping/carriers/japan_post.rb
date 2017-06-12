@@ -1,13 +1,12 @@
 require 'curl'
 
 module ActiveShipping
-  class RoyalMail < Carrier
+  class JapanPost < Carrier
     cattr_reader :name
-    @@name = "Royal Mail"
+    @@name = "Japan Post"
 
-    LIVE_TRACKING_URL = 'https://www.royalmail.com/business/track-your-item?trackNumber=%s&op='
-    DATE_PARSER_STR = "%d/%m/%y %H:%M %Z"
-    DATE_PARSER_STR_2 = "%d-%b-%Y %H:%M %Z"
+    LIVE_TRACKING_URL = 'http://tracking.post.japanpost.jp/services/sp/srv/search/?requestNo1=%s&search=Beginning&locale=en'
+    DATE_PARSER_STR = "%b %d %H:%M %Z"
 
     # Retrieves tracking information for a previous shipment
     #
@@ -23,7 +22,7 @@ module ActiveShipping
     end
     
     def parse_tracking_response(tracking_number, options = {})
-      sleep 2;
+      # sleep 2;
       scheduled_delivery_date, actual_delivery_date = nil
       delivered = false
       
@@ -41,45 +40,50 @@ module ActiveShipping
       
       easy.close
             
-      doc.css(".tnt-tracking-history tr")
+      doc.css("div#smt-tracking dt")
       
       success = true
       
-      status_description = doc.css('dd.tnt-item-status').text
+      status_description = doc.css('div#smt-tracking dt').last.text
       
       status = status_description.downcase.to_sym
-      if status_description =~ /ready.*delivery/i
-        status = :out_for_delivery
+      if status_description =~ /final delivery/i
+        status = :delivered
+        delivered = true
       end
-      if status_description =~ /item number isn't recognised/i
-        status = :not_recognized
-        success = false
+      if status_description =~ /processing/i
+        status = :in_transit
       end
+      # if status_description =~ /item number isn't recognised/i
+      #   status = :not_recognized
+      #   success = false
+      # end
 
 
-      rows = doc.css(".tnt-tracking-history tbody tr")
+      rows = doc.css("div#smt-tracking .tracking_form").children
       
       shipment_events = []
       
-      rows.each do |activity|
-        description = activity.css("td")[2].text
-        time_str = "#{activity.css("td")[0].text} #{activity.css("td")[1].text} GMT"
-        case activity.css("td")[0].text.length
-        when 8
-          zoneless_time = DateTime.strptime(time_str, DATE_PARSER_STR)
-        when 11
-          zoneless_time = DateTime.strptime(time_str, DATE_PARSER_STR_2)
+      rows.each_with_index do |activity, i|
+        if activity.children.size == 1
+          description = activity.text.squish
+          detail = rows[i+2]
+          
+          time_str = detail.children[0].text.squish + " PST"
+          actual_time = DateTime.strptime(time_str, DATE_PARSER_STR)
+          p actual_time
+          location = detail.children[5].text.squish
+
+          p "#{description}, #{zoneless_time}, #{location}"
+          # shipment_events << ShipmentEvent.new(description, zoneless_time, location)
         end
-        location = activity.css("td")[3].text
-        p "#{description}, #{zoneless_time}, #{location}"
-        shipment_events << ShipmentEvent.new(description, zoneless_time, location)
+
       end
 
       shipment_events = shipment_events.sort_by(&:time)
       
       if status == :delivered
         actual_delivery_date = shipment_events.last.time
-        delivered = true
       end
       
       TrackingResponse.new(success, status_description, {success: success},

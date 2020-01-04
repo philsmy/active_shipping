@@ -1,15 +1,6 @@
 module ActiveShipping
   class CanadaPostPWS < Carrier
-    TRACKING_STATUS_CODES = HashWithIndifferentAccess.new(
-      'Item in transit' => :in_transit,
-      'Item out for delivery' => :out_for_delivery,
-      'Shipment picked up by Canada Post' => :picked_up,
-      'Delivered' => :delivered,
-      'Delivered to community mailbox or parcel locker' => :delivered,
-      'Delivered to building superintendent or security agent' => :delivered,
-      'Electronic information submitted by shipper' => :registered,
-    )
-    
+
     cattr_reader :name
     @@name = "Canada Post PWS"
 
@@ -326,7 +317,6 @@ module ActiveShipping
       dest_postal_code = doc.root.at('destination-postal-id').text
       destination      = Location.new(:postal_code => dest_postal_code)
       origin           = Location.new(origin_hash_for(doc.root))
-      status           = TRACKING_STATUS_CODES[shipment_events.first.message]
       options = {
         :carrier                 => @@name,
         :service_name            => doc.root.at('service-name').text,
@@ -338,13 +328,8 @@ module ActiveShipping
         :tracking_number         => doc.root.at('pin').text,
         :origin                  => origin,
         :destination             => destination,
-        :status                  => status,
         :customer_number         => doc.root.at('mailed-by-customer-number').text
       }
-
-      if status == :delivered
-        options[:actual_delivery_date] = shipment_events.first.time
-      end
 
       CPPWSTrackingResponse.new(true, "", {}, options)
     end
@@ -356,12 +341,11 @@ module ActiveShipping
         zone      = event.at('event-time-zone').text
         timestamp = DateTime.parse("#{date} #{time} #{zone}")
         time      = Time.utc(timestamp.utc.year, timestamp.utc.month, timestamp.utc.day, timestamp.utc.hour, timestamp.utc.min, timestamp.utc.sec)
-        name   = event.at('event-description').text
         message   = event.at('event-description').text
         location  = [event.at('event-retail-name'), event.at('event-site'), event.at('event-province')].
                       reject { |e| e.nil? || e.text.empty? }.join(", ")
-        type_code      = event.at('event-identifier').text
-        ShipmentEvent.new(name, time, location, message, type_code)
+        name      = event.at('event-identifier').text
+        ShipmentEvent.new(name, time, location, message)
       end
     end
 

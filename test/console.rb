@@ -34,7 +34,6 @@ end
 @canpo    = create_carrier(CanadaPost,:canada_post)
 @fedex    = create_carrier(FedEx,:fedex)
 @shipwire = create_carrier(Shipwire,:shipwire)
-@ups      = create_carrier(UPS,:ups)
 @usps     = create_carrier(USPS,:usps)
 # Tips: call reload! to reload all the active_shipping files, use fixtures from test_helpers for parameters
 binding.pry

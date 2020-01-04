@@ -5,16 +5,20 @@ sudo: false
 rvm:
 - "2.2.2"
 - "2.3.1"
-- "2.4.0"
+- "2.4.1"
 
 gemfile:
 - gemfiles/activesupport42.gemfile
 - gemfiles/activesupport50.gemfile
-- gemfiles/activesupport_master.gemfile
+- gemfiles/activesupport51.gemfile
+- gemfiles/activesupport52.gemfile
 
 matrix:
+  include:
+    - rvm: "2.4.1"
+      gemfile: gemfiles/activesupport_master.gemfile
   exclude:
-    - rvm: "2.4.0"
+    - rvm: "2.4.1"
       gemfile: gemfiles/activesupport42.gemfile
 
 env:
@@ -25,8 +29,3 @@ env:
   - ACTIVESHIPPING_CANADA_POST_PWS_API_KEY=6e93d53968881714
   - ACTIVESHIPPING_CANADA_POST_PWS_SECRET=0bfa9fcb9853d1f51ee57a
   - ACTIVESHIPPING_USPS_LOGIN=677JADED7283
-  - ACTIVESHIPPING_UPS_LOGIN=shopifolk
-  - ACTIVESHIPPING_UPS_KEY=7CE85DED4C9D07AB
-  - ACTIVESHIPPING_UPS_PASSWORD=Shopify_rocks
-  - ACTIVESHIPPING_UPS_ORIGIN_ACCOUNT=X3V606
-  - ACTIVESHIPPING_UPS_ORIGIN_NAME=Shopify

@@ -13,8 +13,6 @@ require 'pry'
 require 'vcr'
 require 'webmock/minitest'
 
-require_relative 'helpers/holiday_helpers.rb'
-
 Minitest::Reporters.use! Minitest::Reporters::ProgressReporter.new(detailed_skip: !!ENV["CI"])
 
 VCR.configure do |config|
@@ -116,7 +114,8 @@ module ActiveShipping::Test
                                  :address1 => '110 Laurier Avenue West',
                                  :postal_code => 'K1P 1J1',
                                  :phone => '1-613-580-2400',
-                                 :fax => '1-613-580-2495'),
+                                 :fax => '1-613-580-2495',
+                                 :email => 'bob.bobsen@gmail.com'),
         :ottawa_with_name => Location.new( :country => 'CA',
                                            :province => 'ON',
                                            :city => 'Ottawa',

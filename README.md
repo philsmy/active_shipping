@@ -26,15 +26,16 @@ This library interfaces with the web services of various shipping carriers. The 
 
 
 ## Versions
-Note: `2.x` contains breaking changes, please see the [changelog](https://github.com/Shopify/active_shipping/blob/master/CHANGELOG.md). Shopify will not be actively contibuting to the 2.0 version of this gem and is looking for maintainers.
-We have released `1.9` and will only backport small fixes to this version, on branch `1-9-stable`, and they should be on `master` first.
+Note: `2.x` contains breaking changes, please see the [changelog](https://github.com/Shopify/active_shipping/blob/master/CHANGELOG.md). Shopify will not be actively contributing to the `2.x` version of this gem and is looking for maintainers.
+
+[See our releases](https://github.com/Shopify/active_shipping/releases) for past versions.
 
 ## Installation
 
 Using bundler, add to the `Gemfile`:
 
 ```ruby
-gem 'active_shipping', github: 'philsmy/active_shipping'
+gem 'active_shipping'
 ```
 
 Or stand alone:
@@ -42,6 +43,7 @@ Or stand alone:
 ```
 $ gem install active_shipping
 ```
+
 
 ## Sample Usage
 
@@ -73,17 +75,6 @@ packages = [
                                             postal_code: 'K1P 1J1')
 
  # Find out how much it'll be.
- ups = ActiveShipping::UPS.new(login: 'auntjudy', password: 'secret', key: 'xml-access-key')
- response = ups.find_rates(origin, destination, packages)
-
- ups_rates = response.rates.sort_by(&:price).collect {|rate| [rate.service_name, rate.price]}
- # => [["UPS Standard", 3936],
- #     ["UPS Worldwide Expedited", 8682],
- #     ["UPS Saver", 9348],
- #     ["UPS Express", 9702],
- #     ["UPS Worldwide Express Plus", 14502]]
-
- # Check out USPS for comparison...
  usps = ActiveShipping::USPS.new(login: 'developer-key')
  response = usps.find_rates(origin, destination, packages)
 

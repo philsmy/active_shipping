@@ -46,17 +46,17 @@ class USPSTest < ActiveSupport::TestCase
     assert_equal "This Information has not been included in this Test Server.", e.message
   end
 
-  def test_find_tracking_info_should_handle_invalid_xml_error
-    @carrier.expects(:commit).returns(xml_fixture('usps/invalid_xml_tracking_response_error'))
-    assert_raises ResponseError do
-      @carrier.find_tracking_info('9102901000462189604217,9102901000462189604214', :test => true)
-    end
-  end
-
   def test_find_tracking_info_should_handle_not_available_error
     @carrier.expects(:commit).returns(xml_fixture('usps/tracking_response_not_available'))
     assert_raises ResponseError do
       @carrier.find_tracking_info('9574211957289221353248', :test => true)
+    end
+  end
+
+  def test_find_tracking_info_should_handle_invalid_xml_error
+    @carrier.expects(:commit).returns(xml_fixture('usps/invalid_xml_tracking_response_error'))
+    assert_raises ResponseError do
+      @carrier.find_tracking_info('9102901000462189604217,9102901000462189604214', :test => true)
     end
   end
 
